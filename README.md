@@ -10,7 +10,7 @@ The projects consist of several features that might be utilized in data science 
   - Utilizing a cloud to store and retrieve data from a major cloud service.
   - Running Query on the data within the cloud get specific information.
   - Assess and clean the data to fit your needs for mining.
-  - Run machine learning algorithms on the data for predictive anlalytics.
+  - Run machine learning algorithms on the data for predictive analytics..
   - Visualize the data.
   - Conclusion of analysis.
 
