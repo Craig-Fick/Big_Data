@@ -1,0 +1,294 @@
+---
+title: "Get Me BIG DATA, Stat!"
+output:
+  rmdformats::downcute:
+    downcute_theme: "chaos"
+    lightbox: true
+    toc_depth: 2
+    toc_float: yes
+    number_sections: yes
+    df_print: paged
+    code_download: yes
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+---
+
+<br>
+
+![GOOGLE IMAGES](https://wallpaperaccess.com/full/1805469.jpg)
+
+# __Introduction__
+
+|    In the age of information, as you might know the amount of data available is expansive and growing exponentially. This leads to the need of data services like Microsoft Azure, Amazon AWS, and Google Cloud. Services that let any business store and run analysis on the data to see what works best for their company by tracking views, purchases, and even to test advertising. I personally have not explored any of these products until the start of this project. I wanted to get a more aqquainted with these services and choose Google's Cloud Services to start with because they had some datasets that were already available to do projects on in Google's Big Query. This is great because I don't have insanely large data sets just laying around to test on! Yet. If you want to follow along and dip your toes into a major cloud service I will go step-by-step below. To get started, you will need to setup a free account with Google's Big Query. 
+
+<br>
+
+__Click ![[HERE](https://cloud.google.com/bigquery/)] to start an account with Google Cloud and Big Query!__
+
+# __Goal of Project__
+
+|    The goal of this project is to demonstrate how anyone can utilize a cloud service and analyze the information from it. I will take a particular dataset already on the cloud and run a simple query on it to reduce the dimensions of the dataset to something simple. I will then visualize the data, run some machine learning models against the data for predictive analytics analysis on the data with an added visual for easy interpretation. 
+
+
+
+# __Data__
+
+The data I will use for the project is the Census_adult_income, which is located in the ml_datasets.
+
+<br>
+
+![](C:/Users/CSFic/Desktop/Data Info.PNG)
+
+
+## __Data Definitions__
+
+From the project we are only going to utilize three variables to make things simple. The three variables used are income_bracket, sex, and education_num.
+
+<br>
+
+* __income_bracket__: Either ">50K" or "<=50K" based on income.
+* __sex__: Gender of the observation.
+* __education_num__: Estimated years of education completed based on the value of the education field.
+
+<br>
+
+![List of all of the data variables, types, and definitions of the set.](C:/Users/CSFic/Desktop/Schema.PNG)
+
+
+
+
+## __Data Query Process__
+
+Big Query supports two dialects of the coding language SQL, both standard and legacy. This is the query used to select the variables we will be working with. After running the query you can download the data to run analysis on.
+
+![](C:/Users/CSFic/Desktop/Google Cloud.PNG)
+
+## __Data Table__
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results=FALSE}
+# import the data
+df <- read.csv("C:/Users/CSFic/Desktop/bq-results-20220116-183006-p26joibr17qb.csv")
+
+```
+
+
+
+|   Below is a sample view of the data that was imported.
+
+<br>
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+head(df) 
+```
+
+|     Now that we have data, we need to analyze it. To do this we need to make sure it is complete and of the proper type. Just looking at the table we see that two of the variables are of the character type. Since these columns only have two responses, the data will work better as binary.
+
+<br>
+
+Check data for missing observations.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(Amelia)
+missmap(df)
+```
+<br> 
+
+|    There isn't any missing observations in the entire data frame. Next step will be to alter the data types so we can work with it a little easier. This can be done by converting the categorical variables from character into binary format to make the observations numeric.
+
+<br>
+
+```{r}
+# if-else statement to make observations more than 50K equal to 1, less than 50K to 0, and convert to integer.
+df$income_bracket_bin <- as.integer(ifelse(df$income_bracket == " >50K", "1", "0"))
+
+# if-else statement to make observations male equal to 1, female to 0, and convert to integer.
+df$sex_bin <- as.integer(ifelse(df$sex == " Male", "1", "0"))
+
+```
+
+<br>
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+head(df)
+```
+
+<br>
+
+The data now seems to be in order. Now, to visualize the data.
+
+
+
+## Visual Representation of Data {.tabset}
+
+### Violin Plot
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(ggplot2)
+
+v <- ggplot(data = df, aes(x = sex, y = education_num, color=sex, fill=sex))  + 
+        geom_violin()
+
+
+v + scale_color_manual(values=c("red", "blue"))
+  
+```
+
+
+### Stacked Barplot
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(viridis)
+
+b <- ggplot(data = df, aes(x = education_num, fill = sex)) +
+        geom_bar()
+b + scale_color_manual(values=c("red", "blue"))
+```
+
+
+# __Analysis__
+
+|     For fun, we can try to predict the income bracket people will fall into based on sex and education using a few different machine learning models. To do so, we will need to split the data into training and testing.  I organized the visuals for the different machine learning models in decreasing order by accuracy.
+
+
+## Machine learning Visuals {.tabset}
+
+### Neural Network Plot
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(neuralnet)
+library(caret)
+library(dplyr)
+
+#normalize
+normalize = function(x) {
+return((x-min(x))/(max(x)-min(x)))
+}
+
+df2 = df %>% mutate_at(3:5, normalize)
+
+# create test and train sets
+set.seed(1)
+train_rows = createDataPartition(y = df2$income_bracket, p = 0.80, list = FALSE)
+train = df2[train_rows,]
+test = df2[-train_rows,]
+
+# fit neural network
+set.seed(42)
+NN = neuralnet(income_bracket_bin ~ sex_bin + education_num, data = train, hidden = 2, linear.output = TRUE, threshold=0.01)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# plot neural network
+plot(NN, rep = "best")
+```
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# predictions
+pred = predict(NN, test)
+pred_bin <- as.factor(ifelse(pred > 0.5, "1", "0"))
+
+# matrix
+confusionMatrix(factor(pred_bin), factor(test$income_bracket_bin), mode = "prec_recall", positive = "1")
+```
+
+### Decision Tree
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(rpart)
+library(rpart.plot)
+set.seed(42)
+# using original df labels
+tree = rpart(income_bracket ~ sex + education_num, data = train, method = "class", parms = list(split = "information"))
+rpart.plot(tree, box.palette="RdBu", shadow.col="gray", nn=TRUE)
+
+# binary model
+tree2 = rpart(income_bracket_bin ~ sex_bin + education_num, data = train, method = "class", parms = list(split = "information"))
+```
+
+```{r}
+pred_tree = predict(tree2, test, type = "class")
+confusionMatrix(factor(pred_tree), factor(test$income_bracket_bin))
+```
+
+
+
+### Naive Bayes Plot
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(naivebayes)
+
+NB_model <- naive_bayes(factor(income_bracket_bin) ~ sex_bin + education_num, data = train, usekernel = TRUE) 
+plot(NB_model)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+pred_nb = predict(NB_model, test, type="class")
+confusionMatrix(pred_nb, factor(test$income_bracket_bin),mode = "prec_recall", positive = "1")
+```
+|     We can somewhat accurately predict income bracket based on gender and education level. This means that there is some correlation between the variables. Normally you could just use the pairs function to view the correlation between the variables, but since the variables are mostly binary it will not have much readability. The question I am most curious about with this data, that has not been answered yet, would be the proportions of the two variables that are in a income bracket above fifty-thousand. This may be best observed with the use of tables.
+
+
+## Proportion Tables {.tabset}
+
+### Gender of Income Above 50K
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+print('Counts')
+table(df$income_bracket==' >50K', df$sex)
+print('Percentages')
+prop.table(table(df$income_bracket==' >50K', df$sex))*100
+```
+__Conclusion__
+
+|     Nearly half of the observations are male above 50K income level. There is some bias here as the proportion of men to women has a ratio of almost 2:1. The ratios of sex in the higher income differ quite a bit. For female, it is 1:10 of >50K to <=50K. For Male, it is 1:2. This means that for the genders, only a 10th of the female population make a great wage while nearly a third of the male population is above 50K of income.
+
+
+### Education Level of Income Above 50K
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+print('Counts')
+table(df$income_bracket==' >50K', df$education_num)
+
+print('Percentages')
+prop.table(table(df$income_bracket==' >50K', df$education_num))*100
+```
+__Conclusion__
+
+|     Most of the population has a education level between 9 and 14. For the most part, the ratio for the same education numbers are 1:4, the 1 being those in the income bracket above 50K.
+
+
+### Education Level of Income Above 50K and Male
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+print('Counts')
+table(df$income_bracket==' >50K' & df$sex == ' Male', df$education_num)
+print('Percentages')
+prop.table(table(df$income_bracket==' >50K' & df$sex == ' Male', df$education_num))*100
+```
+__Conclusion__
+
+|     For the male population above 50K, the majority fall on education numbers of 9 and 13.
+
+
+
+### Education Level of Income Above 50K and Female
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+print('Counts')
+table(df$income_bracket==' >50K' & df$sex == ' Female', df$education_num)
+print('Percentages')
+prop.table(table(df$income_bracket==' >50K' & df$sex == ' Female', df$education_num))*100
+```
+__Conclusion__
+
+|     For the female population above 50K, the majority fall on education numbers of 9 and 13 similar to the males. The percentages are much smaller, but that was expected from the earlier table conclusions.
+
+
+# __Closing__
+
+|     I hope you enjoyed this write-up and learned something from it. If you wish to see some of my other project you can check out my portfolio website or github.
+
+![[Portfolio](https://github.com/Craig-Fick)]
+
+![[Github](https://craigfick.myportfolio.com/projects)]
+
+![[Linkedin](https://www.linkedin.com/in/craig-fick/)]
+
+# __Session Info__
+
+```{r}
+sessionInfo()
+```
+
